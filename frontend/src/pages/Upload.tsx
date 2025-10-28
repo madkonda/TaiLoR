@@ -8,11 +8,10 @@ export default function Upload() {
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (files && files.length > 0) {
-      console.log('Selected files:', Array.from(files).map(f => f.name))
-      // TODO: Handle file upload logic here
+      await uploadFiles(Array.from(files))
     }
   }
 
@@ -26,13 +25,39 @@ export default function Upload() {
     setIsDragOver(false)
   }
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(false)
     const files = e.dataTransfer.files
     if (files && files.length > 0) {
-      console.log('Dropped files:', Array.from(files).map(f => f.name))
-      // TODO: Handle file upload logic here
+      await uploadFiles(Array.from(files))
+    }
+  }
+
+  const uploadFiles = async (files: File[]) => {
+    try {
+      const formData = new FormData()
+      files.forEach(file => {
+        formData.append('videos', file)
+      })
+
+      const response = await fetch('http://localhost:3001/api/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        alert(`Successfully uploaded ${result.files.length} files!`)
+        console.log('Upload successful:', result)
+      } else {
+        alert(`Upload failed: ${result.error}`)
+        console.error('Upload failed:', result)
+      }
+    } catch (error) {
+      alert(`Upload error: ${error.message}`)
+      console.error('Upload error:', error)
     }
   }
 
