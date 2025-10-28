@@ -27,11 +27,6 @@ export default function Upload() {
           <h3>Inconsistency Detection</h3>
           <p>Automatic flagging of frames requiring manual review for quality assurance</p>
         </div>
-        <div className="feature-card">
-          <div className="feature-icon">📦</div>
-          <h3>Batch Processing</h3>
-          <p>Upload multiple videos and process them together with queue-based scheduling for efficiency</p>
-        </div>
       </div>
     </section>
   )
