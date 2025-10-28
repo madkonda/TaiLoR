@@ -1,14 +1,67 @@
+import { useRef, useState } from 'react'
+
 export default function Upload() {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+
+  const handleDropzoneClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (files && files.length > 0) {
+      console.log('Selected files:', Array.from(files).map(f => f.name))
+      // TODO: Handle file upload logic here
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      console.log('Dropped files:', Array.from(files).map(f => f.name))
+      // TODO: Handle file upload logic here
+    }
+  }
+
   return (
     <section className="upload-page">
       <h1>Upload Mouse Behavior Videos</h1>
       <p className="lead">Upload your mouse behavior videos for SAM2 segmentation and behavior analysis</p>
 
-      <div className="dropzone" role="button" tabIndex={0}>
+      <div 
+        className={`dropzone ${isDragOver ? 'drag-over' : ''}`}
+        role="button" 
+        tabIndex={0} 
+        onClick={handleDropzoneClick}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <div className="drop-icon">⬆️</div>
         <div className="drop-title">Drag & drop videos here</div>
         <div className="drop-sub">or click to select files</div>
         <div className="drop-note">Supports MP4, AVI, MOV, MKV, WebM (max 5 files)</div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".mp4,.avi,.mov,.mkv,.webm"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
       </div>
 
       <div className="features">

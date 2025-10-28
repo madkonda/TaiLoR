@@ -90,6 +90,19 @@ a:hover {
   padding: 3rem 1rem;
   text-align: center;
   margin: 1rem 0 2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dropzone:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in oklab, var(--color-surface), transparent 10%);
+}
+
+.dropzone.drag-over {
+  border-color: var(--color-primary);
+  background: color-mix(in oklab, var(--color-primary), transparent 90%);
+  transform: scale(1.02);
 }
 .drop-icon { font-size: 2rem; margin-bottom: .5rem; }
 .drop-title { font-weight: 700; margin-bottom: .25rem; }
