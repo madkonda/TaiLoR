@@ -56,7 +56,8 @@ export default function Upload() {
         console.error('Upload failed:', result)
       }
     } catch (error) {
-      alert(`Upload error: ${error.message}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Upload error: ${errorMessage}`)
       console.error('Upload error:', error)
     }
   }
