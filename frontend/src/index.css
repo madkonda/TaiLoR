@@ -1,0 +1,134 @@
+:root {
+  --color-bg: #0b0d12;
+  --color-surface: #111520;
+  --color-text: #e6e9f0;
+  --color-muted: #a3acc2;
+  --color-primary: #6aa0ff;
+  --color-primary-600: #4a85f9;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background: radial-gradient(1200px 600px at 10% -10%, #152040 10%, transparent 40%),
+              radial-gradient(1000px 500px at 110% 10%, #1a2a55 10%, transparent 40%),
+              var(--color-bg);
+  color: var(--color-text);
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--color-primary-600);
+}
+
+.app-root {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  backdrop-filter: saturate(180%) blur(8px);
+  background: color-mix(in oklab, var(--color-surface), transparent 20%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.brand {
+  font-weight: 700;
+  margin-right: .5rem;
+}
+
+.spacer { flex: 1; }
+
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .875rem;
+  color: #7ee787;
+}
+.status-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #2ea043;
+  box-shadow: 0 0 0 3px rgba(46,160,67,.2);
+}
+.status-dot.online { color: #7ee787; }
+
+.upload-page h1 { margin-top: 0; }
+.upload-page .lead { color: var(--color-muted); margin-bottom: 1.5rem; }
+
+.dropzone {
+  border: 2px dashed rgba(255,255,255,.25);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--color-surface), transparent 20%);
+  padding: 3rem 1rem;
+  text-align: center;
+  margin: 1rem 0 2rem;
+}
+.drop-icon { font-size: 2rem; margin-bottom: .5rem; }
+.drop-title { font-weight: 700; margin-bottom: .25rem; }
+.drop-sub { color: var(--color-muted); margin-bottom: .5rem; }
+.drop-note { color: var(--color-muted); font-size: .875rem; }
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+.feature-card {
+  background: color-mix(in oklab, var(--color-surface), transparent 20%);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+}
+.feature-icon { font-size: 1.25rem; margin-bottom: .5rem; }
+.nav-link {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  color: var(--color-text);
+}
+
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-primary);
+}
+
+.app-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 2rem 1rem 3rem;
+}
+
+.app-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in oklab, var(--color-surface), transparent 20%);
+  padding: 1rem;
+  text-align: center;
+}
