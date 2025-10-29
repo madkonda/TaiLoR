@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import ProcessingDashboard from '../components/ProcessingDashboard'
+import { VERSION } from '../version'
 
 interface ProcessingJob {
   id: string
@@ -211,7 +212,7 @@ export default function Upload() {
   return (
     <section className="upload-page">
       <h1>Upload Mouse Behavior Videos</h1>
-      <p className="lead">Upload your mouse behavior videos for SAM2 segmentation and behavior analysis (v2.0)</p>
+      <p className="lead">Upload your mouse behavior videos for SAM2 segmentation and behavior analysis (v{VERSION})</p>
 
       <div 
         className={`dropzone ${isDragOver ? 'drag-over' : ''}`}
