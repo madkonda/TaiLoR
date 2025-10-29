@@ -211,7 +211,7 @@ export default function Upload() {
 
   return (
     <section className="upload-page">
-      <h1>Upload Mouse Behavior Videos</h1>
+      <h1>🎬 Upload Mouse Behavior Videos - Real-time Processing Dashboard</h1>
       <p className="lead">Upload your mouse behavior videos for SAM2 segmentation and behavior analysis (v{VERSION})</p>
 
       <div 
