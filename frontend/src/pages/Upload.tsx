@@ -96,8 +96,8 @@ export default function Upload() {
         formData.append('videos', file)
       })
 
-      const isProduction = window.location.hostname === 'tailor.morsestudio.dev'
-      const backendUrl = isProduction ? 'https://tailor.morsestudio.dev:3001' : 'http://localhost:3001'
+      // For now, always use localhost backend since it's not deployed to production
+      const backendUrl = 'http://localhost:3001'
       const response = await fetch(`${backendUrl}/api/upload`, {
         method: 'POST',
         body: formData

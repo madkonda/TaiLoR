@@ -27,9 +27,8 @@ const ProcessingDashboard: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Connect to WebSocket server - use production URL for deployed frontend
-    const isProduction = window.location.hostname === 'tailor.morsestudio.dev';
-    const websocketUrl = isProduction ? 'https://tailor.morsestudio.dev:3002' : 'http://localhost:3002';
+    // Connect to WebSocket server - always use localhost for now
+    const websocketUrl = 'http://localhost:3002';
     const newSocket = io(websocketUrl);
     setSocket(newSocket);
 
