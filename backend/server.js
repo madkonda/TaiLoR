@@ -6,6 +6,9 @@ const fs = require('fs');
 const { google } = require('googleapis');
 require('dotenv').config();
 
+// Import WebSocket functions
+const { createJob, updateJobStep } = require('./websocket_server');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
@@ -126,9 +129,17 @@ app.post('/api/upload', upload.array('videos', 5), async (req, res) => {
     }
 
     const uploadedFiles = [];
+    const processingJobs = [];
     
     for (const file of req.files) {
       try {
+        // Create processing job
+        const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const job = createJob(jobId, file.originalname, [677, 881], [766, 773]);
+        
+        // Update job status to uploading
+        updateJobStep(jobId, 'upload', 'processing', 'Uploading to Google Drive...', 10);
+        
         // Upload to Google Drive
         const driveResult = await uploadToGoogleDrive(file.path, file.originalname);
         
@@ -136,8 +147,15 @@ app.post('/api/upload', upload.array('videos', 5), async (req, res) => {
           filename: file.originalname,
           size: file.size,
           driveId: driveResult.id,
-          driveLink: driveResult.webViewLink
+          driveLink: driveResult.webViewLink,
+          jobId: jobId
         });
+        
+        processingJobs.push(jobId);
+        
+        // Update job status to completed upload
+        updateJobStep(jobId, 'upload', 'completed', 'Uploaded to Google Drive successfully!', 20);
+        updateJobStep(jobId, 'download', 'processing', 'Waiting for Linux Mint download...', 30);
         
         // Clean up local temp file
         fs.unlinkSync(file.path);
@@ -155,7 +173,8 @@ app.post('/api/upload', upload.array('videos', 5), async (req, res) => {
     res.json({
       success: true,
       message: `Successfully uploaded ${uploadedFiles.length} files to Google Drive`,
-      files: uploadedFiles
+      files: uploadedFiles,
+      jobs: processingJobs
     });
 
   } catch (error) {
@@ -203,12 +222,48 @@ app.post('/api/download-complete', express.json(), (req, res) => {
   }
 });
 
-// Video processing endpoint
+// Webhook endpoint for Linux Mint processing completion notifications
+app.post('/api/processing-complete', express.json(), (req, res) => {
+  try {
+    const { filename, filepath, status, timestamp, type, jobId } = req.body;
+    
+    console.log(`🔬 Processing completion notification received:`);
+    console.log(`   File: ${filename}`);
+    console.log(`   Path: ${filepath}`);
+    console.log(`   Status: ${status}`);
+    console.log(`   Type: ${type}`);
+    console.log(`   Job ID: ${jobId}`);
+    console.log(`   Time: ${new Date(timestamp * 1000).toISOString()}`);
+    
+    if (jobId) {
+      if (status === 'completed') {
+        updateJobStep(jobId, 'segment', 'completed', 'SAM2 segmentation completed!', 90);
+        updateJobStep(jobId, 'complete', 'completed', 'Processing complete! Results saved.', 100);
+        console.log(`✅ Video processing completed successfully on Linux Mint: ${filename}`);
+      } else if (status === 'failed') {
+        updateJobStep(jobId, 'segment', 'failed', 'SAM2 segmentation failed', 0);
+        console.log(`❌ Video processing failed on Linux Mint: ${filename}`);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Processing notification received',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error handling processing notification:', error);
+    res.status(500).json({ error: 'Failed to process processing notification' });
+  }
+});
+
+// Video processing endpoint - now just tracks status since processing happens on Linux Mint
 app.post('/api/process-video', express.json(), async (req, res) => {
   try {
     const { videoPath, nestCoords, mouseCoords, jobId } = req.body;
     
-    console.log(`🎬 Processing video: ${videoPath}`);
+    console.log(`🎬 Video processing request received: ${videoPath}`);
     console.log(`🎯 Nest coordinates: ${nestCoords}`);
     console.log(`🐭 Mouse coordinates: ${mouseCoords}`);
     console.log(`📋 Job ID: ${jobId}`);
@@ -221,70 +276,22 @@ app.post('/api/process-video', express.json(), async (req, res) => {
       });
     }
     
-    // Check if video file exists
-    if (!fs.existsSync(videoPath)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: `Video file not found: ${videoPath}` 
-      });
-    }
+    // Since processing happens on Linux Mint, we just acknowledge the request
+    // The actual processing will be handled by the Linux Mint download script
+    console.log(`📤 Video will be processed on Linux Mint after download`);
     
-    // Create output directory
-    const outputDir = './results';
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-    
-    // Run video processing
-    const { spawn } = require('child_process');
-    const pythonProcess = spawn('python3', [
-      './process_video.py',
-      '--video_path', videoPath,
-      '--nest_x', nestCoords[0].toString(),
-      '--nest_y', nestCoords[1].toString(),
-      '--mouse_x', mouseCoords[0].toString(),
-      '--mouse_y', mouseCoords[1].toString(),
-      '--output_dir', outputDir
-    ]);
-    
-    let stdout = '';
-    let stderr = '';
-    
-    pythonProcess.stdout.on('data', (data) => {
-      stdout += data.toString();
-      console.log(`[Python] ${data.toString().trim()}`);
-    });
-    
-    pythonProcess.stderr.on('data', (data) => {
-      stderr += data.toString();
-      console.error(`[Python Error] ${data.toString().trim()}`);
-    });
-    
-    pythonProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log(`✅ Video processing completed for job ${jobId}`);
-        res.json({ 
-          success: true, 
-          message: 'Video processing completed successfully',
-          jobId: jobId,
-          outputDir: outputDir
-        });
-      } else {
-        console.error(`❌ Video processing failed for job ${jobId}: ${stderr}`);
-        res.status(500).json({ 
-          success: false, 
-          error: 'Video processing failed',
-          details: stderr,
-          jobId: jobId
-        });
-      }
+    res.json({ 
+      success: true, 
+      message: 'Video processing request received. Processing will happen on Linux Mint.',
+      jobId: jobId,
+      status: 'queued_for_linux_processing'
     });
     
   } catch (error) {
-    console.error('Error processing video:', error);
+    console.error('Error handling video processing request:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to process video',
+      error: 'Failed to handle video processing request',
       details: error.message 
     });
   }

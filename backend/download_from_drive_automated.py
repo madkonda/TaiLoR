@@ -84,12 +84,89 @@ def download_files_from_drive():
                 f.write(fh.getvalue())
             
             print(f"✅ Downloaded: {file_name}")
+            
+            # Auto-process video files
+            if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.mkv', '.webm')):
+                print(f"🎬 Auto-processing video: {file_name}")
+                # Extract job ID from filename if available (format: jobId_filename.mp4)
+                job_id = None
+                if '_' in file_name:
+                    potential_job_id = file_name.split('_')[0]
+                    if potential_job_id.startswith('job_'):
+                        job_id = potential_job_id
+                
+                process_video_automatically(file_path, file_name, job_id)
         
         print(f"\n🎉 All files downloaded to: {DOWNLOAD_DIR}")
         
     except Exception as e:
         print(f"❌ Error downloading files: {e}")
         sys.exit(1)
+
+def process_video_automatically(video_path, video_name, job_id=None):
+    """
+    Automatically process a downloaded video with default coordinates
+    """
+    try:
+        import subprocess
+        
+        # Default coordinates (can be customized)
+        nest_coords = [677, 881]  # Default nest position
+        mouse_coords = [766, 773]  # Default mouse position
+        
+        print(f"🔬 Starting automatic processing for {video_name}")
+        print(f"🎯 Using default coordinates - Nest: {nest_coords}, Mouse: {mouse_coords}")
+        
+        # Send frame extraction notification
+        send_processing_notification(video_name, video_path, "processing", "extract", job_id)
+        
+        # Run the Linux Mint processing script
+        cmd = [
+            'python3',
+            '/home/morsestudio/sam2/videologic/process_video_linux.py',
+            '--video_path', video_path,
+            '--nest_x', str(nest_coords[0]),
+            '--nest_y', str(nest_coords[1]),
+            '--mouse_x', str(mouse_coords[0]),
+            '--mouse_y', str(mouse_coords[1]),
+            '--output_dir', '/home/morsestudio/sam2/results'
+        ]
+        
+        # Send segmentation start notification
+        send_processing_notification(video_name, video_path, "processing", "segment", job_id)
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        print(f"✅ Auto-processing completed for {video_name}")
+        print(f"📊 Output: {result.stdout}")
+        
+        # Send completion notification to Mac backend
+        send_processing_notification(video_name, video_path, "completed", "complete", job_id)
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Auto-processing failed for {video_name}: {e}")
+        print(f"Error output: {e.stderr}")
+        send_processing_notification(video_name, video_path, "failed", "segment", job_id)
+    except Exception as e:
+        print(f"❌ Error in auto-processing {video_name}: {e}")
+        send_processing_notification(video_name, video_path, "failed", "segment", job_id)
+
+def send_processing_notification(filename, filepath, status, step=None, job_id=None):
+    """Send processing completion notification to Mac backend"""
+    try:
+        payload = {
+            "filename": filename,
+            "filepath": filepath,
+            "status": status,
+            "timestamp": int(time.time()),
+            "type": "video_processing",
+            "step": step,
+            "jobId": job_id
+        }
+        response = requests.post(WEBHOOK_URL.replace('/download-complete', '/processing-complete'), json=payload)
+        response.raise_for_status()
+        print(f"🔔 Processing notification sent for {filename}: {status} - {step}")
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ Warning: Could not send processing notification for {filename}: {e}")
 
 if __name__ == "__main__":
     print("🚀 TaiLOR Google Drive Download Script (Fully Automated)")

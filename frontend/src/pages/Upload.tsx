@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import ProcessingDashboard from '../components/ProcessingDashboard'
 
 interface ProcessingJob {
   id: string
@@ -49,10 +50,9 @@ export default function Upload() {
     console.log('Is production:', isProduction)
     
     if (isProduction) {
-      const totalSizeMB = (files.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(2)
-      const fileList = files.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`).join('\n')
-      
-      alert(`🚀 Files Selected Successfully!\n\n📁 Files (${files.length}):\n${fileList}\n\n📊 Total Size: ${totalSizeMB} MB\n\n✅ All files are within the 5GB limit!\n\n📋 To upload these files:\n1. Make sure your Mac backend is running\n2. Use: http://localhost:5173\n3. Your automated system will handle the rest!`)
+      // Production - upload files and show real-time progress
+      console.log('Production mode: Uploading files to backend')
+      uploadFiles(files)
       return
     }
 
@@ -88,14 +88,15 @@ export default function Upload() {
   }
 
   const uploadFiles = async (files: File[]) => {
-    // Local development - use backend
+    // Use production or local backend based on environment
     try {
       const formData = new FormData()
       files.forEach(file => {
         formData.append('videos', file)
       })
 
-      const backendUrl = 'http://localhost:3001'
+      const isProduction = window.location.hostname === 'tailor.morsestudio.dev'
+      const backendUrl = isProduction ? 'https://tailor.morsestudio.dev:3001' : 'http://localhost:3001'
       const response = await fetch(`${backendUrl}/api/upload`, {
         method: 'POST',
         body: formData
@@ -397,6 +398,11 @@ export default function Upload() {
           <p>Automatic flagging of frames requiring manual review for quality assurance</p>
         </div>
       </div>
+
+      {/* Real-time Processing Dashboard */}
+      <section className="processing-section" style={{ marginTop: '3rem' }}>
+        <ProcessingDashboard />
+      </section>
     </section>
   )
 }
