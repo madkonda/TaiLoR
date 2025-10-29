@@ -45,14 +45,21 @@ export default function Upload() {
         }
       }
 
+      // For production deployment, we'll show instructions to the user
+      const isProduction = window.location.hostname === 'tailor.morsestudio.dev'
+      
+      if (isProduction) {
+        alert(`🚀 File Upload Ready!\n\nFiles selected: ${files.length}\nTotal size: ${(files.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(2)} MB\n\n✅ Files are ready for upload!\n\n📋 Next steps:\n1. Make sure your Mac backend is running (port 3001)\n2. Use the local version: http://localhost:5173\n3. Or set up ngrok to expose your backend\n\nYour automated system will handle the rest!`)
+        return
+      }
+
+      // Local development - use backend
       const formData = new FormData()
       files.forEach(file => {
         formData.append('videos', file)
       })
 
-      // Use environment variable for backend URL, fallback to localhost for development
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
-      // For production, you might need to use your Mac's public IP or a tunnel service
+      const backendUrl = 'http://localhost:3001'
       const response = await fetch(`${backendUrl}/api/upload`, {
         method: 'POST',
         body: formData
