@@ -80,3 +80,14 @@ jspm_packages/
 # DynamoDB Local files
 .dynamodb/
 .vercel
+
+# Sensitive files - DO NOT COMMIT
+backend/service-account-key.json
+backend/credentials.json
+backend/client_secret_*.json
+backend/*.json
+!backend/package.json
+!backend/package-lock.json
+backend/uploads/
+backend/test_video.mp4
+backend/test.txt

@@ -36,12 +36,24 @@ export default function Upload() {
 
   const uploadFiles = async (files: File[]) => {
     try {
+      // Check file sizes (max 5GB per file)
+      const maxSize = 5 * 1024 * 1024 * 1024 // 5GB in bytes
+      for (const file of files) {
+        if (file.size > maxSize) {
+          alert(`File ${file.name} is too large. Maximum size is 5GB.`)
+          return
+        }
+      }
+
       const formData = new FormData()
       files.forEach(file => {
         formData.append('videos', file)
       })
 
-      const response = await fetch('http://localhost:3001/api/upload', {
+      // Use environment variable for backend URL, fallback to localhost for development
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
+      // For production, you might need to use your Mac's public IP or a tunnel service
+      const response = await fetch(`${backendUrl}/api/upload`, {
         method: 'POST',
         body: formData
       })
@@ -79,7 +91,7 @@ export default function Upload() {
         <div className="drop-icon">⬆️</div>
         <div className="drop-title">Drag & drop videos here</div>
         <div className="drop-sub">or click to select files</div>
-        <div className="drop-note">Supports MP4, AVI, MOV, MKV, WebM (max 5 files)</div>
+        <div className="drop-note">Supports MP4, AVI, MOV, MKV, WebM (max 5 files, 5GB each)</div>
         <input
           ref={fileInputRef}
           type="file"

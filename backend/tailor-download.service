@@ -1,0 +1,15 @@
+[Unit]
+Description=TaiLOR Google Drive Download Service
+After=network.target
+
+[Service]
+Type=simple
+User=morsestudio
+WorkingDirectory=/home/morsestudio/sam2/videologic
+ExecStart=/home/morsestudio/anaconda3/envs/sam2/bin/python /home/morsestudio/sam2/videologic/download_automated_webhook.py
+Restart=always
+RestartSec=10
+Environment=PYTHONPATH=/home/morsestudio/sam2/videologic
+
+[Install]
+WantedBy=multi-user.target
