@@ -11,6 +11,15 @@ export default function Upload() {
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (files && files.length > 0) {
+      // Check file sizes first before any processing
+      const maxSize = 5 * 1024 * 1024 * 1024 // 5GB in bytes
+      const oversizedFiles = Array.from(files).filter(file => file.size > maxSize)
+      
+      if (oversizedFiles.length > 0) {
+        alert(`Some files are too large. Maximum size is 5GB per file.\n\nOversized files:\n${oversizedFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024 * 1024)).toFixed(2)} GB)`).join('\n')}`)
+        return
+      }
+      
       await uploadFiles(Array.from(files))
     }
   }
@@ -30,33 +39,42 @@ export default function Upload() {
     setIsDragOver(false)
     const files = e.dataTransfer.files
     if (files && files.length > 0) {
+      // Check file sizes first before any processing
+      const maxSize = 5 * 1024 * 1024 * 1024 // 5GB in bytes
+      const oversizedFiles = Array.from(files).filter(file => file.size > maxSize)
+      
+      if (oversizedFiles.length > 0) {
+        alert(`Some files are too large. Maximum size is 5GB per file.\n\nOversized files:\n${oversizedFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024 * 1024)).toFixed(2)} GB)`).join('\n')}`)
+        return
+      }
+      
       await uploadFiles(Array.from(files))
     }
   }
 
   const uploadFiles = async (files: File[]) => {
-    try {
-      // Check file sizes (max 5GB per file)
-      const maxSize = 5 * 1024 * 1024 * 1024 // 5GB in bytes
-      for (const file of files) {
-        if (file.size > maxSize) {
-          alert(`File ${file.name} is too large. Maximum size is 5GB.`)
-          return
-        }
-      }
-
-      // For production deployment, we'll show file information
-      const isProduction = window.location.hostname === 'tailor.morsestudio.dev'
-      
-      if (isProduction) {
-        const totalSizeMB = (files.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(2)
-        const fileList = files.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`).join('\n')
-        
-        alert(`🚀 Files Selected Successfully!\n\n📁 Files (${files.length}):\n${fileList}\n\n📊 Total Size: ${totalSizeMB} MB\n\n✅ All files are within the 5GB limit!\n\n📋 To upload these files:\n1. Make sure your Mac backend is running\n2. Use: http://localhost:5173\n3. Your automated system will handle the rest!`)
+    // Check file sizes (max 5GB per file)
+    const maxSize = 5 * 1024 * 1024 * 1024 // 5GB in bytes
+    for (const file of files) {
+      if (file.size > maxSize) {
+        alert(`File ${file.name} is too large. Maximum size is 5GB.`)
         return
       }
+    }
 
-      // Local development - use backend
+    // For production deployment, we'll show file information without any server calls
+    const isProduction = window.location.hostname === 'tailor.morsestudio.dev'
+    
+    if (isProduction) {
+      const totalSizeMB = (files.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(2)
+      const fileList = files.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`).join('\n')
+      
+      alert(`🚀 Files Selected Successfully!\n\n📁 Files (${files.length}):\n${fileList}\n\n📊 Total Size: ${totalSizeMB} MB\n\n✅ All files are within the 5GB limit!\n\n📋 To upload these files:\n1. Make sure your Mac backend is running\n2. Use: http://localhost:5173\n3. Your automated system will handle the rest!`)
+      return
+    }
+
+    // Local development - use backend
+    try {
       const formData = new FormData()
       files.forEach(file => {
         formData.append('videos', file)

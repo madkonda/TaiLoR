@@ -5,8 +5,7 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": { 
-        "distDir": "dist",
-        "maxLambdaSize": "50mb"
+        "distDir": "dist"
       }
     }
   ],
@@ -14,11 +13,6 @@
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
-  "functions": {
-    "frontend/src/pages/Upload.tsx": {
-      "maxDuration": 900
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
