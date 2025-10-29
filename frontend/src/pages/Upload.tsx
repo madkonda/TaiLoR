@@ -45,11 +45,14 @@ export default function Upload() {
         }
       }
 
-      // For production deployment, we'll show instructions to the user
+      // For production deployment, we'll show file information
       const isProduction = window.location.hostname === 'tailor.morsestudio.dev'
       
       if (isProduction) {
-        alert(`🚀 File Upload Ready!\n\nFiles selected: ${files.length}\nTotal size: ${(files.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(2)} MB\n\n✅ Files are ready for upload!\n\n📋 Next steps:\n1. Make sure your Mac backend is running (port 3001)\n2. Use the local version: http://localhost:5173\n3. Or set up ngrok to expose your backend\n\nYour automated system will handle the rest!`)
+        const totalSizeMB = (files.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(2)
+        const fileList = files.map(f => `• ${f.name} (${(f.size / (1024 * 1024)).toFixed(2)} MB)`).join('\n')
+        
+        alert(`🚀 Files Selected Successfully!\n\n📁 Files (${files.length}):\n${fileList}\n\n📊 Total Size: ${totalSizeMB} MB\n\n✅ All files are within the 5GB limit!\n\n📋 To upload these files:\n1. Make sure your Mac backend is running\n2. Use: http://localhost:5173\n3. Your automated system will handle the rest!`)
         return
       }
 
@@ -99,6 +102,9 @@ export default function Upload() {
         <div className="drop-title">Drag & drop videos here</div>
         <div className="drop-sub">or click to select files</div>
         <div className="drop-note">Supports MP4, AVI, MOV, MKV, WebM (max 5 files, 5GB each)</div>
+        <div className="drop-note" style={{fontSize: '0.9em', marginTop: '10px', color: '#666'}}>
+          💡 This is a file selection interface. For actual uploads, use the local version.
+        </div>
         <input
           ref={fileInputRef}
           type="file"
