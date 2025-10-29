@@ -6,8 +6,52 @@ const fs = require('fs');
 const { google } = require('googleapis');
 require('dotenv').config();
 
-// Import WebSocket functions
-const { createJob, updateJobStep } = require('./websocket_server');
+// WebSocket functions - we'll use a simple approach for now
+let createJob, updateJobStep;
+
+// Simple job tracking without WebSocket for now
+const activeJobs = new Map();
+
+createJob = (jobId, filename, nestCoords, mouseCoords) => {
+  const job = {
+    id: jobId,
+    filename: filename,
+    nestCoords: nestCoords,
+    mouseCoords: mouseCoords,
+    status: 'pending',
+    progress: 0,
+    steps: [
+      { name: 'upload', status: 'pending', message: 'Waiting for upload...', progress: 0 },
+      { name: 'download', status: 'pending', message: 'Waiting for download...', progress: 0 },
+      { name: 'extract', status: 'pending', message: 'Waiting for frame extraction...', progress: 0 },
+      { name: 'segment', status: 'pending', message: 'Waiting for SAM2 segmentation...', progress: 0 },
+      { name: 'complete', status: 'pending', message: 'Waiting for completion...', progress: 0 }
+    ]
+  };
+  activeJobs.set(jobId, job);
+  console.log(`📋 Job created: ${jobId} for ${filename}`);
+  return job;
+};
+
+updateJobStep = (jobId, stepName, status, message, progress) => {
+  const job = activeJobs.get(jobId);
+  if (job) {
+    const step = job.steps.find(s => s.name === stepName);
+    if (step) {
+      step.status = status;
+      step.message = message;
+      step.progress = progress;
+    }
+    
+    // Update overall job progress
+    const completedSteps = job.steps.filter(s => s.status === 'completed').length;
+    const totalSteps = job.steps.length;
+    job.progress = Math.round((completedSteps / totalSteps) * 100);
+    job.status = status;
+    
+    console.log(`📊 Job ${jobId} - ${stepName}: ${status} - ${message} (${progress}%)`);
+  }
+};
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -196,6 +240,32 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Get job status endpoint
+app.get('/api/jobs', (req, res) => {
+  const jobs = Array.from(activeJobs.values());
+  res.json({
+    success: true,
+    jobs: jobs
+  });
+});
+
+// Get specific job status
+app.get('/api/jobs/:jobId', (req, res) => {
+  const jobId = req.params.jobId;
+  const job = activeJobs.get(jobId);
+  if (job) {
+    res.json({
+      success: true,
+      job: job
+    });
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'Job not found'
+    });
+  }
+});
+
 // Webhook endpoint for Linux Mint download notifications
 app.post('/api/download-complete', express.json(), (req, res) => {
   try {
@@ -235,16 +305,18 @@ app.post('/api/processing-complete', express.json(), (req, res) => {
     console.log(`   Job ID: ${jobId}`);
     console.log(`   Time: ${new Date(timestamp * 1000).toISOString()}`);
     
-    if (jobId) {
-      if (status === 'completed') {
-        updateJobStep(jobId, 'segment', 'completed', 'SAM2 segmentation completed!', 90);
-        updateJobStep(jobId, 'complete', 'completed', 'Processing complete! Results saved.', 100);
-        console.log(`✅ Video processing completed successfully on Linux Mint: ${filename}`);
-      } else if (status === 'failed') {
-        updateJobStep(jobId, 'segment', 'failed', 'SAM2 segmentation failed', 0);
-        console.log(`❌ Video processing failed on Linux Mint: ${filename}`);
-      }
-    }
+        if (jobId) {
+          if (status === 'completed') {
+            updateJobStep(jobId, 'segment', 'completed', 'SAM2 segmentation completed!', 90);
+            updateJobStep(jobId, 'complete', 'completed', 'Processing complete! Results saved.', 100);
+            console.log(`✅ Video processing completed successfully on Linux Mint: ${filename}`);
+          } else if (status === 'failed') {
+            updateJobStep(jobId, 'segment', 'failed', 'SAM2 segmentation failed', 0);
+            console.log(`❌ Video processing failed on Linux Mint: ${filename}`);
+          }
+        } else {
+          console.log(`⚠️ No jobId provided for processing notification: ${filename}`);
+        }
     
     res.json({ 
       success: true, 
