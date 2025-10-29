@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import Upload from './pages/Upload.tsx'
+import TestUpload from './pages/TestUpload.tsx'
 import Queue from './pages/Queue.tsx'
 import Results from './pages/Results.tsx'
 import NotFound from './pages/NotFound.tsx'
@@ -14,6 +15,7 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/" element={<App />}>
           <Route index element={<Upload />} />
+          <Route path="test" element={<TestUpload />} />
           <Route path="queue" element={<Queue />} />
           <Route path="results" element={<Results />} />
           <Route path="*" element={<NotFound />} />
