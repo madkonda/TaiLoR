@@ -1,8 +1,22 @@
 import { useRef, useState } from 'react'
 
+interface ProcessingJob {
+  id: string
+  filename: string
+  status: 'uploading' | 'processing' | 'completed' | 'failed'
+  nestCoords?: [number, number]
+  mouseCoords?: [number, number]
+  progress?: number
+}
+
 export default function Upload() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [showCoordinateInput, setShowCoordinateInput] = useState(false)
+  const [nestCoords, setNestCoords] = useState<[number, number]>([677, 881])
+  const [mouseCoords, setMouseCoords] = useState<[number, number]>([766, 773])
+  const [processingJobs, setProcessingJobs] = useState<ProcessingJob[]>([])
 
   const handleDropzoneClick = () => {
     fileInputRef.current?.click()
@@ -42,9 +56,15 @@ export default function Upload() {
       return
     }
 
-    // Local development - use backend
-    console.log('Using local backend for upload')
-    uploadFiles(files)
+    // Local development - handle single file for processing
+    if (files.length === 1) {
+      setSelectedFile(files[0])
+      setShowCoordinateInput(true)
+    } else {
+      // Multiple files - just upload
+      console.log('Using local backend for upload')
+      uploadFiles(files)
+    }
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -97,6 +117,96 @@ export default function Upload() {
     }
   }
 
+  const processVideoWithCoordinates = async () => {
+    if (!selectedFile) return
+
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // Add job to processing list
+    const newJob: ProcessingJob = {
+      id: jobId,
+      filename: selectedFile.name,
+      status: 'uploading',
+      nestCoords,
+      mouseCoords
+    }
+    
+    setProcessingJobs(prev => [...prev, newJob])
+    setShowCoordinateInput(false)
+
+    try {
+      // First upload the file
+      const formData = new FormData()
+      formData.append('videos', selectedFile)
+
+      const uploadResponse = await fetch('http://localhost:3001/api/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      const uploadResult = await uploadResponse.json()
+      
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error)
+      }
+
+      // Update job status
+      setProcessingJobs(prev => 
+        prev.map(job => 
+          job.id === jobId 
+            ? { ...job, status: 'processing' as const }
+            : job
+        )
+      )
+
+      // Get the uploaded file path (assuming it's saved locally)
+      const videoPath = `./temp_uploads/${selectedFile.name}`
+
+      // Start video processing
+      const processResponse = await fetch('http://localhost:3001/api/process-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          videoPath,
+          nestCoords,
+          mouseCoords,
+          jobId
+        })
+      })
+
+      const processResult = await processResponse.json()
+      
+      if (processResult.success) {
+        setProcessingJobs(prev => 
+          prev.map(job => 
+            job.id === jobId 
+              ? { ...job, status: 'completed' as const }
+              : job
+          )
+        )
+        alert(`✅ Video processing completed!\n\nFile: ${selectedFile.name}\nJob ID: ${jobId}`)
+      } else {
+        throw new Error(processResult.error)
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setProcessingJobs(prev => 
+        prev.map(job => 
+          job.id === jobId 
+            ? { ...job, status: 'failed' as const }
+            : job
+        )
+      )
+      alert(`❌ Video processing failed: ${errorMessage}`)
+      console.error('Video processing error:', error)
+    }
+
+    setSelectedFile(null)
+  }
+
   return (
     <section className="upload-page">
       <h1>Upload Mouse Behavior Videos</h1>
@@ -127,6 +237,148 @@ export default function Upload() {
           style={{ display: 'none' }}
         />
       </div>
+
+      {/* Coordinate Input Modal */}
+      {showCoordinateInput && selectedFile && (
+        <div className="coordinate-modal" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3>🎯 Set Mouse and Nest Coordinates</h3>
+            <p>File: <strong>{selectedFile.name}</strong></p>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                🏠 Nest Coordinates (X, Y):
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="number"
+                  value={nestCoords[0]}
+                  onChange={(e) => setNestCoords([parseInt(e.target.value) || 0, nestCoords[1]])}
+                  placeholder="X"
+                  style={{ padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+                <input
+                  type="number"
+                  value={nestCoords[1]}
+                  onChange={(e) => setNestCoords([nestCoords[0], parseInt(e.target.value) || 0])}
+                  placeholder="Y"
+                  style={{ padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                🐭 Mouse Coordinates (X, Y):
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="number"
+                  value={mouseCoords[0]}
+                  onChange={(e) => setMouseCoords([parseInt(e.target.value) || 0, mouseCoords[1]])}
+                  placeholder="X"
+                  style={{ padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+                <input
+                  type="number"
+                  value={mouseCoords[1]}
+                  onChange={(e) => setMouseCoords([mouseCoords[0], parseInt(e.target.value) || 0])}
+                  placeholder="Y"
+                  style={{ padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  setShowCoordinateInput(false)
+                  setSelectedFile(null)
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={processVideoWithCoordinates}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: 'none',
+                  borderRadius: '4px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Start Processing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Processing Jobs Status */}
+      {processingJobs.length > 0 && (
+        <div className="processing-jobs" style={{ marginTop: '2rem' }}>
+          <h3>🔄 Processing Jobs</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {processingJobs.map(job => (
+              <div key={job.id} style={{
+                padding: '1rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                backgroundColor: job.status === 'completed' ? '#d4edda' : 
+                                job.status === 'failed' ? '#f8d7da' : '#fff3cd'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span><strong>{job.filename}</strong></span>
+                  <span style={{
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    backgroundColor: job.status === 'completed' ? '#28a745' : 
+                                   job.status === 'failed' ? '#dc3545' : '#ffc107',
+                    color: 'white'
+                  }}>
+                    {job.status.toUpperCase()}
+                  </span>
+                </div>
+                {job.nestCoords && job.mouseCoords && (
+                  <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>
+                    Nest: ({job.nestCoords[0]}, {job.nestCoords[1]}) | 
+                    Mouse: ({job.mouseCoords[0]}, {job.mouseCoords[1]})
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="features">
         <div className="feature-card">

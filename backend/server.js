@@ -31,7 +31,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 500 * 1024 * 1024 // 500MB limit
+    fileSize: 5 * 1024 * 1024 * 1024 // 5GB limit
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.mp4', '.avi', '.mov', '.mkv', '.webm'];
@@ -203,11 +203,111 @@ app.post('/api/download-complete', express.json(), (req, res) => {
   }
 });
 
+// Video processing endpoint
+app.post('/api/process-video', express.json(), async (req, res) => {
+  try {
+    const { videoPath, nestCoords, mouseCoords, jobId } = req.body;
+    
+    console.log(`🎬 Processing video: ${videoPath}`);
+    console.log(`🎯 Nest coordinates: ${nestCoords}`);
+    console.log(`🐭 Mouse coordinates: ${mouseCoords}`);
+    console.log(`📋 Job ID: ${jobId}`);
+    
+    // Validate input
+    if (!videoPath || !nestCoords || !mouseCoords) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameters: videoPath, nestCoords, mouseCoords' 
+      });
+    }
+    
+    // Check if video file exists
+    if (!fs.existsSync(videoPath)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Video file not found: ${videoPath}` 
+      });
+    }
+    
+    // Create output directory
+    const outputDir = './results';
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    
+    // Run video processing
+    const { spawn } = require('child_process');
+    const pythonProcess = spawn('python3', [
+      './process_video.py',
+      '--video_path', videoPath,
+      '--nest_x', nestCoords[0].toString(),
+      '--nest_y', nestCoords[1].toString(),
+      '--mouse_x', mouseCoords[0].toString(),
+      '--mouse_y', mouseCoords[1].toString(),
+      '--output_dir', outputDir
+    ]);
+    
+    let stdout = '';
+    let stderr = '';
+    
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+      console.log(`[Python] ${data.toString().trim()}`);
+    });
+    
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+      console.error(`[Python Error] ${data.toString().trim()}`);
+    });
+    
+    pythonProcess.on('close', (code) => {
+      if (code === 0) {
+        console.log(`✅ Video processing completed for job ${jobId}`);
+        res.json({ 
+          success: true, 
+          message: 'Video processing completed successfully',
+          jobId: jobId,
+          outputDir: outputDir
+        });
+      } else {
+        console.error(`❌ Video processing failed for job ${jobId}: ${stderr}`);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Video processing failed',
+          details: stderr,
+          jobId: jobId
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error processing video:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process video',
+      details: error.message 
+    });
+  }
+});
+
+// Get processing status endpoint
+app.get('/api/processing-status/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  
+  // For now, return a simple status
+  // In a real implementation, you'd track job status in a database
+  res.json({
+    jobId: jobId,
+    status: 'processing', // or 'completed', 'failed'
+    message: 'Video is being processed'
+  });
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File too large. Maximum size is 500MB.' });
+      return res.status(400).json({ error: 'File too large. Maximum size is 5GB.' });
     }
   }
   res.status(500).json({ error: error.message });
