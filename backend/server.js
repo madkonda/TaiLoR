@@ -243,10 +243,62 @@ app.get('/api/health', (req, res) => {
 // Get job status endpoint
 app.get('/api/jobs', (req, res) => {
   const jobs = Array.from(activeJobs.values());
+  console.log(`📊 Returning ${jobs.length} active jobs`);
   res.json({
     success: true,
     jobs: jobs
   });
+});
+
+// Store Linux Mint status
+let linuxStatus = {
+  videosDirectory: '/home/morsestudio/sam2/videos',
+  resultsDirectory: '/home/morsestudio/sam2/results',
+  videos: [],
+  results: [],
+  processing: [],
+  completed: [],
+  lastUpdate: new Date().toISOString()
+};
+
+// Get Linux Mint file status
+app.get('/api/linux-status', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      status: linuxStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update Linux Mint status (called by Linux Mint)
+app.post('/api/linux-status-update', express.json(), (req, res) => {
+  try {
+    const status = req.body;
+    linuxStatus = {
+      ...linuxStatus,
+      ...status,
+      lastUpdate: new Date().toISOString()
+    };
+    
+    console.log(`🐧 Linux status updated: ${status.videos?.length || 0} videos, ${status.completed?.length || 0} completed`);
+    
+    res.json({
+      success: true,
+      message: 'Linux status updated'
+    });
+  } catch (error) {
+    console.error('Error updating Linux status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // Get specific job status

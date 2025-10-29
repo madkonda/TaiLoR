@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import ProcessingDashboard from '../components/ProcessingDashboard'
+import LinuxStatusDashboard from '../components/LinuxStatusDashboard'
 import { VERSION } from '../version'
 
 interface ProcessingJob {
@@ -400,10 +401,15 @@ export default function Upload() {
         </div>
       </div>
 
-      {/* Real-time Processing Dashboard */}
-      <section className="processing-section" style={{ marginTop: '3rem' }}>
-        <ProcessingDashboard />
-      </section>
+        {/* Real-time Processing Dashboard */}
+        <section className="processing-section" style={{ marginTop: '3rem' }}>
+          <ProcessingDashboard />
+        </section>
+
+        {/* Linux Mint Status Dashboard */}
+        <section className="linux-status-section" style={{ marginTop: '3rem' }}>
+          <LinuxStatusDashboard />
+        </section>
     </section>
   )
 }
