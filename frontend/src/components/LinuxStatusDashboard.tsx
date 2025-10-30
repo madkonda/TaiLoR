@@ -1,18 +1,43 @@
 import React, { useState, useEffect } from 'react';
 
+interface LinuxFile {
+  name: string;
+  type: 'video' | 'image' | 'other' | 'directory';
+  size?: string;
+  lastModified?: string;
+  status?: 'processing' | 'completed';
+  fullPath?: string;
+}
+
 interface LinuxStatus {
   videosDirectory: string;
   resultsDirectory: string;
-  videos: string[];
-  results: string[];
+  videos: LinuxFile[];
+  results: LinuxFile[];
   processing: string[];
   completed: string[];
   lastUpdate: string;
 }
 
+interface CoordinateInput {
+  nestX: number;
+  nestY: number;
+  mouseX: number;
+  mouseY: number;
+}
+
 const LinuxStatusDashboard: React.FC = () => {
   const [status, setStatus] = useState<LinuxStatus | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [showCoordinateModal, setShowCoordinateModal] = useState(false);
+  const [coordinates, setCoordinates] = useState<CoordinateInput>({
+    nestX: 677,
+    nestY: 881,
+    mouseX: 766,
+    mouseY: 773
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -41,6 +66,48 @@ const LinuxStatusDashboard: React.FC = () => {
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString();
+  };
+
+  const handleFolderSelect = (folderPath: string) => {
+    setSelectedFolder(folderPath);
+    setShowCoordinateModal(true);
+  };
+
+  const handleCoordinateSubmit = async () => {
+    if (!selectedFolder) return;
+    
+    setIsProcessing(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/process-folder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          folderPath: selectedFolder,
+          coordinates: coordinates
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ Started processing folder: ${selectedFolder}\nNest: (${coordinates.nestX}, ${coordinates.nestY})\nMouse: (${coordinates.mouseX}, ${coordinates.mouseY})`);
+        setShowCoordinateModal(false);
+        setSelectedFolder(null);
+      } else {
+        alert(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error processing folder:', error);
+      alert(`❌ Error processing folder: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const getFullPath = (file: LinuxFile, baseDir: string) => {
+    return file.fullPath || `${baseDir}/${file.name}`;
   };
 
   const getFileIcon = (filename: string) => {
@@ -138,9 +205,30 @@ const LinuxStatusDashboard: React.FC = () => {
             ) : (
               <div className="space-y-2">
                 {status.videos.map((video, index) => (
-                  <div key={index} className="flex items-center gap-2 p-2 bg-gray-600 rounded">
-                    <span className="text-lg">{getFileIcon(video)}</span>
-                    <span className="text-sm font-mono">{video}</span>
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-600 rounded group">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-lg">{getFileIcon(video.name)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-mono truncate" title={getFullPath(video, status.videosDirectory)}>
+                          {video.name}
+                        </div>
+                        <div className="text-xs text-gray-400 truncate" title={getFullPath(video, status.videosDirectory)}>
+                          📁 {getFullPath(video, status.videosDirectory)}
+                        </div>
+                        {video.size && typeof video.size === 'number' && (
+                          <div className="text-xs text-gray-500">
+                            📏 {(video.size / (1024 * 1024)).toFixed(2)} MB
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleFolderSelect(getFullPath(video, status.videosDirectory))}
+                      className="opacity-0 group-hover:opacity-100 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-opacity"
+                      title="Process this video with SAM2"
+                    >
+                      🎬 Process
+                    </button>
                   </div>
                 ))}
               </div>
@@ -160,9 +248,25 @@ const LinuxStatusDashboard: React.FC = () => {
             ) : (
               <div className="space-y-2">
                 {status.results.map((result, index) => (
-                  <div key={index} className="flex items-center gap-2 p-2 bg-gray-600 rounded">
-                    <span className="text-lg">{getFileIcon(result)}</span>
-                    <span className="text-sm font-mono">{result}</span>
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-600 rounded group">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-lg">{getFileIcon(result.name)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-mono truncate" title={getFullPath(result, status.resultsDirectory)}>
+                          {result.name}
+                        </div>
+                        <div className="text-xs text-gray-400 truncate" title={getFullPath(result, status.resultsDirectory)}>
+                          📁 {getFullPath(result, status.resultsDirectory)}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleFolderSelect(getFullPath(result, status.resultsDirectory))}
+                      className="opacity-0 group-hover:opacity-100 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition-opacity"
+                      title="Process this folder with SAM2"
+                    >
+                      🎯 Process
+                    </button>
                   </div>
                 ))}
               </div>
@@ -200,6 +304,83 @@ const LinuxStatusDashboard: React.FC = () => {
             {status.completed.length > 5 && (
               <p className="text-sm text-gray-400">... and {status.completed.length - 5} more</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Coordinate Input Modal */}
+      {showCoordinateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4 text-white">
+              🎯 SAM2 Processing Coordinates
+            </h3>
+            <p className="text-gray-400 mb-4">
+              Processing folder: <span className="font-mono text-blue-400">{selectedFolder}</span>
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  🏠 Nest Coordinates
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    value={coordinates.nestX}
+                    onChange={(e) => setCoordinates(prev => ({ ...prev, nestX: parseInt(e.target.value) || 0 }))}
+                    className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder="X"
+                  />
+                  <input
+                    type="number"
+                    value={coordinates.nestY}
+                    onChange={(e) => setCoordinates(prev => ({ ...prev, nestY: parseInt(e.target.value) || 0 }))}
+                    className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder="Y"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  🐭 Mouse Coordinates
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    value={coordinates.mouseX}
+                    onChange={(e) => setCoordinates(prev => ({ ...prev, mouseX: parseInt(e.target.value) || 0 }))}
+                    className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder="X"
+                  />
+                  <input
+                    type="number"
+                    value={coordinates.mouseY}
+                    onChange={(e) => setCoordinates(prev => ({ ...prev, mouseY: parseInt(e.target.value) || 0 }))}
+                    className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder="Y"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowCoordinateModal(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors"
+                disabled={isProcessing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCoordinateSubmit}
+                disabled={isProcessing}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors disabled:opacity-50"
+              >
+                {isProcessing ? '🔄 Processing...' : '🚀 Start Processing'}
+              </button>
+            </div>
           </div>
         </div>
       )}

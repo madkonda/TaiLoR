@@ -1,0 +1,18 @@
+[Unit]
+Description=TaiLOR Google Drive Continuous Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=morsestudio
+WorkingDirectory=/home/morsestudio/sam2
+ExecStart=/home/morsestudio/anaconda3/envs/sam2/bin/python /home/morsestudio/sam2/monitor_drive_continuous.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+

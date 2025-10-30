@@ -32,13 +32,33 @@ def get_linux_status():
     
     # Check videos directory
     if os.path.exists(VIDEOS_DIR):
-        video_files = glob.glob(f"{VIDEOS_DIR}/*.mp4") + glob.glob(f"{VIDEOS_DIR}/*.avi") + glob.glob(f"{VIDEOS_DIR}/*.mov")
-        status["videos"] = [os.path.basename(f) for f in video_files]
+        video_files = glob.glob(f"{VIDEOS_DIR}/*.mp4") + glob.glob(f"{VIDEOS_DIR}/*.avi") + glob.glob(f"{VIDEOS_DIR}/*.mov") + glob.glob(f"{VIDEOS_DIR}/*.webm") + glob.glob(f"{VIDEOS_DIR}/*.mkv")
+        status["videos"] = []
+        for f in video_files:
+            file_info = {
+                "name": os.path.basename(f),
+                "type": "video",
+                "fullPath": f,
+                "size": os.path.getsize(f) if os.path.exists(f) else 0,
+                "lastModified": datetime.fromtimestamp(os.path.getmtime(f)).isoformat() if os.path.exists(f) else None
+            }
+            status["videos"].append(file_info)
     
     # Check results directory
     if os.path.exists(RESULTS_DIR):
-        result_files = glob.glob(f"{RESULTS_DIR}/*")
-        status["results"] = [os.path.basename(f) for f in result_files]
+        # List subdirectories in results, assuming each is a processed video's results folder
+        result_dirs = [d for d in os.listdir(RESULTS_DIR) if os.path.isdir(os.path.join(RESULTS_DIR, d))]
+        status["results"] = []
+        for d in result_dirs:
+            dir_path = os.path.join(RESULTS_DIR, d)
+            file_info = {
+                "name": d,
+                "type": "directory",
+                "fullPath": dir_path,
+                "size": sum(os.path.getsize(os.path.join(dir_path, f)) for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))) if os.path.exists(dir_path) else 0,
+                "lastModified": datetime.fromtimestamp(os.path.getmtime(dir_path)).isoformat() if os.path.exists(dir_path) else None
+            }
+            status["results"].append(file_info)
     
     # Check for processing indicators (lock files, temp files, etc.)
     processing_files = glob.glob(f"{VIDEOS_DIR}/*.processing") + glob.glob(f"{RESULTS_DIR}/*.processing")

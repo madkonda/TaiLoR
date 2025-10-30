@@ -2,24 +2,28 @@
 """
 TaiLOR Google Drive Download Script for Linux Mint (Fully Automated)
 Downloads files from Google Drive folder to local directory using service account
+Automatically deletes files from Google Drive after successful processing
 """
 
 import os
 import sys
 import json
+import time
+import requests
 from pathlib import Path
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import io
 
-# Google Drive API scopes
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+# Google Drive API scopes - now includes delete permission
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.file']
 
 # Configuration
 DRIVE_FOLDER_ID = "1HvGlLB-MjcYftrQ-SHeopc913vSEUNKA"  # Your Google Drive folder ID
 DOWNLOAD_DIR = "/home/morsestudio/sam2/videos"  # Local download directory
 SERVICE_ACCOUNT_FILE = 'service-account-key.json'  # Service account key file
+WEBHOOK_URL = "http://192.168.1.100:3001/api/download-complete"  # Mac backend webhook URL
 
 def get_credentials():
     """Get service account credentials."""
@@ -35,6 +39,16 @@ def get_credentials():
     except Exception as e:
         print(f"❌ Error loading service account credentials: {e}")
         sys.exit(1)
+
+def delete_file_from_drive(service, file_id, file_name):
+    """Delete a file from Google Drive."""
+    try:
+        service.files().delete(fileId=file_id).execute()
+        print(f"🗑️ Deleted from Google Drive: {file_name}")
+        return True
+    except Exception as e:
+        print(f"❌ Error deleting {file_name} from Google Drive: {e}")
+        return False
 
 def download_files_from_drive():
     """Download all files from the specified Google Drive folder."""
@@ -95,7 +109,18 @@ def download_files_from_drive():
                     if potential_job_id.startswith('job_'):
                         job_id = potential_job_id
                 
-                process_video_automatically(file_path, file_name, job_id)
+                # Process the video and delete from Google Drive if successful
+                success = process_video_automatically(file_path, file_name, job_id, service, file_id)
+                
+                # Delete from Google Drive after successful processing
+                if success:
+                    delete_file_from_drive(service, file_id, file_name)
+                else:
+                    print(f"⚠️ Keeping {file_name} in Google Drive due to processing failure")
+            else:
+                # For non-video files, delete immediately after download
+                print(f"📄 Non-video file downloaded, deleting from Google Drive: {file_name}")
+                delete_file_from_drive(service, file_id, file_name)
         
         print(f"\n🎉 All files downloaded to: {DOWNLOAD_DIR}")
         
@@ -103,9 +128,10 @@ def download_files_from_drive():
         print(f"❌ Error downloading files: {e}")
         sys.exit(1)
 
-def process_video_automatically(video_path, video_name, job_id=None):
+def process_video_automatically(video_path, video_name, job_id=None, service=None, file_id=None):
     """
     Automatically process a downloaded video with default coordinates
+    Returns True if successful, False otherwise
     """
     try:
         import subprocess
@@ -142,13 +168,17 @@ def process_video_automatically(video_path, video_name, job_id=None):
         # Send completion notification to Mac backend
         send_processing_notification(video_name, video_path, "completed", "complete", job_id)
         
+        return True
+        
     except subprocess.CalledProcessError as e:
         print(f"❌ Auto-processing failed for {video_name}: {e}")
         print(f"Error output: {e.stderr}")
         send_processing_notification(video_name, video_path, "failed", "segment", job_id)
+        return False
     except Exception as e:
         print(f"❌ Error in auto-processing {video_name}: {e}")
         send_processing_notification(video_name, video_path, "failed", "segment", job_id)
+        return False
 
 def send_processing_notification(filename, filepath, status, step=None, job_id=None):
     """Send processing completion notification to Mac backend"""

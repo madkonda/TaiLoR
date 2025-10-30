@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import ProcessingDashboard from '../components/ProcessingDashboard'
-import LinuxStatusDashboard from '../components/LinuxStatusDashboard'
+import NewLinuxFileBrowser from '../components/NewLinuxFileBrowser'
 import { VERSION } from '../version'
+import { apiUrl } from '../config'
 
 interface ProcessingJob {
   id: string
@@ -13,112 +14,53 @@ interface ProcessingJob {
 }
 
 export default function Upload() {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isDragOver, setIsDragOver] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [showCoordinateInput, setShowCoordinateInput] = useState(false)
   const [nestCoords, setNestCoords] = useState<[number, number]>([677, 881])
   const [mouseCoords, setMouseCoords] = useState<[number, number]>([766, 773])
   const [processingJobs, setProcessingJobs] = useState<ProcessingJob[]>([])
 
-  const handleDropzoneClick = () => {
-    fileInputRef.current?.click()
-  }
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (files && files.length > 0) {
-      // Process files immediately without async/await to avoid any potential Vercel interference
-      processFiles(Array.from(files))
-    }
-  }
-
-  const processFiles = (files: File[]) => {
-    console.log('Processing files:', files.length, 'files')
+    console.log('📤 Uploading files:', files.length, 'files');
     
-    // Check file sizes first before any processing
-    const maxSize = 5 * 1024 * 1024 * 1024 // 5GB in bytes
-    const oversizedFiles = files.filter(file => file.size > maxSize)
-    
-    console.log('File sizes:', files.map(f => `${f.name}: ${(f.size / (1024 * 1024)).toFixed(2)} MB`))
+    const maxSize = 5 * 1024 * 1024 * 1024;
+    const oversizedFiles = Array.from(files).filter(file => file.size > maxSize);
     
     if (oversizedFiles.length > 0) {
-      alert(`Some files are too large. Maximum size is 5GB per file.\n\nOversized files:\n${oversizedFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024 * 1024)).toFixed(2)} GB)`).join('\n')}`)
-      return
-    }
-    
-    // For production deployment, show file information immediately
-    const isProduction = window.location.hostname === 'tailor.morsestudio.dev'
-    console.log('Is production:', isProduction)
-    
-    if (isProduction) {
-      // Production - upload files and show real-time progress
-      console.log('Production mode: Uploading files to backend')
-      uploadFiles(files)
-      return
+      alert(`Some files are too large. Maximum size is 5GB per file.\n\nOversized files:\n${oversizedFiles.map(f => `• ${f.name} (${(f.size / (1024 * 1024 * 1024)).toFixed(2)} GB)`).join('\n')}`);
+      return;
     }
 
-    // Local development - handle single file for processing
-    if (files.length === 1) {
-      setSelectedFile(files[0])
-      setShowCoordinateInput(true)
-    } else {
-      // Multiple files - just upload
-      console.log('Using local backend for upload')
-      uploadFiles(files)
-    }
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    const files = e.dataTransfer.files
-    if (files && files.length > 0) {
-      // Process files immediately without async/await
-      processFiles(Array.from(files))
-    }
-  }
-
-  const uploadFiles = async (files: File[]) => {
-    // Use production or local backend based on environment
     try {
-      const formData = new FormData()
-      files.forEach(file => {
-        formData.append('videos', file)
-      })
+      const formData = new FormData();
+      Array.from(files).forEach(file => {
+        formData.append('videos', file);
+      });
 
-      // For now, always use localhost backend since it's not deployed to production
-      const backendUrl = 'http://localhost:3001'
-      const response = await fetch(`${backendUrl}/api/upload`, {
+      // Production uploads enabled
+      const response = await fetch(apiUrl('/upload'), {
         method: 'POST',
         body: formData
-      })
+      });
 
-      const result = await response.json()
+      const result = await response.json();
       
       if (result.success) {
-        alert(`Successfully uploaded ${result.files.length} files!`)
-        console.log('Upload successful:', result)
+        alert(`✅ Successfully uploaded ${result.files.length} files!\n\nFiles uploaded:\n${result.files.map((f: any) => `• ${f.name}`).join('\n')}`);
+        console.log('Upload successful:', result);
       } else {
-        alert(`Upload failed: ${result.error}`)
-        console.error('Upload failed:', result)
+        alert(`❌ Upload failed: ${result.error}`);
+        console.error('Upload failed:', result);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Upload error: ${errorMessage}`)
-      console.error('Upload error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`❌ Upload error: ${errorMessage}`);
+      console.error('Upload error:', error);
     }
-  }
+  };
 
   const processVideoWithCoordinates = async () => {
     if (!selectedFile) return
@@ -212,33 +154,72 @@ export default function Upload() {
 
   return (
     <section className="upload-page">
-      <h1>🎬 Upload Mouse Behavior Videos - Real-time Processing Dashboard</h1>
-      <p className="lead">Upload your mouse behavior videos for SAM2 segmentation and behavior analysis (v{VERSION})</p>
+      <h1>🎬 Mouse Behavior Video Processing Dashboard</h1>
+      <p className="lead">Process mouse behavior videos with SAM2 segmentation and behavior analysis (v{VERSION})</p>
 
-      <div 
-        className={`dropzone ${isDragOver ? 'drag-over' : ''}`}
-        role="button" 
-        tabIndex={0} 
-        onClick={handleDropzoneClick}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <div className="drop-icon">⬆️</div>
-        <div className="drop-title">Drag & drop videos here</div>
-        <div className="drop-sub">or click to select files</div>
-        <div className="drop-note">Supports MP4, AVI, MOV, MKV, WebM (max 5 files, 5GB each)</div>
-        <div className="drop-note" style={{fontSize: '0.9em', marginTop: '10px', color: '#666'}}>
-          💡 This is a file selection interface. For actual uploads, use the local version.
+      {/* File Upload Section */}
+      <div style={{ 
+        padding: '1.5rem', 
+        backgroundColor: '#f8f9fa', 
+        border: '2px solid #dee2e6', 
+        borderRadius: '12px', 
+        marginBottom: '2rem',
+        textAlign: 'center'
+      }}>
+        <h3 style={{ margin: '0 0 1rem 0', color: '#495057' }}>📤 Upload Video Files</h3>
+        <p style={{ margin: '0 0 1rem 0', color: '#6c757d' }}>
+          Upload your mouse behavior videos to get started with SAM2 segmentation.
+        </p>
+        
+        <div style={{
+          border: '2px dashed #6c757d',
+          borderRadius: '8px',
+          padding: '2rem',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+          backgroundColor: '#fff'
+        }}
+        onClick={() => document.getElementById('fileInput')?.click()}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = '#007bff';
+          e.currentTarget.style.backgroundColor = '#f8f9ff';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = '#6c757d';
+          e.currentTarget.style.backgroundColor = '#fff';
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⬆️</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+            Click to select video files
+          </div>
+          <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
+            Supports MP4, AVI, MOV, MKV, WebM (max 5GB each)
+          </div>
+          <input
+            id="fileInput"
+            type="file"
+            multiple
+            accept="video/mp4,video/avi,video/mov,video/mkv,video/webm"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".mp4,.avi,.mov,.mkv,.webm"
-          onChange={handleFileChange}
-          style={{ display: 'none' }}
-        />
+      </div>
+
+      {/* File Browser Section */}
+      <div style={{ 
+        padding: '1.5rem', 
+        backgroundColor: '#e3f2fd', 
+        border: '2px solid #2196f3', 
+        borderRadius: '12px', 
+        marginBottom: '2rem',
+        textAlign: 'center'
+      }}>
+        <h3 style={{ margin: '0 0 1rem 0', color: '#1976d2' }}>📁 Process Videos from Linux Mint</h3>
+        <p style={{ margin: '0', color: '#424242' }}>
+          The file browser below shows videos from your Linux Mint machine. 
+          <strong> Click "🎬 Process" on any video</strong> to start SAM2 segmentation with custom coordinates.
+        </p>
       </div>
 
       {/* Coordinate Input Modal */}
@@ -406,9 +387,9 @@ export default function Upload() {
           <ProcessingDashboard />
         </section>
 
-        {/* Linux Mint Status Dashboard */}
-        <section className="linux-status-section" style={{ marginTop: '3rem' }}>
-          <LinuxStatusDashboard />
+        {/* New Linux File Browser */}
+        <section className="linux-file-browser-section" style={{ marginTop: '3rem' }}>
+          <NewLinuxFileBrowser />
         </section>
     </section>
   )

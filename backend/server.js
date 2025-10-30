@@ -434,6 +434,54 @@ app.get('/api/processing-status/:jobId', (req, res) => {
   });
 });
 
+// Process folder with SAM2 segmentation
+app.post('/api/process-folder', express.json(), async (req, res) => {
+  try {
+    const { folderPath, coordinates } = req.body;
+    
+    if (!folderPath || !coordinates) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: folderPath and coordinates'
+      });
+    }
+    
+    console.log(`🎯 Processing folder request: ${folderPath}`);
+    console.log(`📍 Coordinates - Nest: (${coordinates.nestX}, ${coordinates.nestY}), Mouse: (${coordinates.mouseX}, ${coordinates.mouseY})`);
+    
+    // Generate a unique job ID
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create a job for tracking
+    createJob(jobId, folderPath, [coordinates.nestX, coordinates.nestY], [coordinates.mouseX, coordinates.mouseY]);
+    
+    // Send processing request to Linux Mint
+    // This would typically be done via SSH or a webhook to the Linux Mint machine
+    // For now, we'll simulate the request
+    console.log(`📤 Sending processing request to Linux Mint for folder: ${folderPath}`);
+    
+    // Update job status
+    updateJobStep(jobId, 'extract', 'processing', 'Starting frame extraction...', 10);
+    updateJobStep(jobId, 'segment', 'pending', 'Waiting for frame extraction...', 0);
+    
+    res.json({
+      success: true,
+      message: 'Folder processing started on Linux Mint',
+      jobId: jobId,
+      folderPath: folderPath,
+      coordinates: coordinates
+    });
+    
+  } catch (error) {
+    console.error('Error processing folder:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process folder',
+      details: error.message
+    });
+  }
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {

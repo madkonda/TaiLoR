@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiUrl } from '../config';
 
 interface ProcessingStep {
   name: string;
@@ -25,12 +26,13 @@ const ProcessingDashboard: React.FC = () => {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/jobs');
-        const data = await response.json();
-        
-        if (data.success) {
-          setJobs(data.jobs);
+        // Use health for connectivity; jobs may not exist in prod
+        const response = await fetch(apiUrl('/health'));
+        if (response.ok) {
+          setJobs([]);
           setIsConnected(true);
+        } else {
+          setIsConnected(false);
         }
       } catch (error) {
         console.error('Error fetching jobs:', error);
