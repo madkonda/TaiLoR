@@ -25,7 +25,7 @@ export default function Upload() {
 
   const handleGoogleDrivePicker = () => {
     if (!GOOGLE_API_KEY) {
-      // Silently return - button will be disabled if API key is not available
+      alert('📁 Google Drive Picker Setup Required\n\nTo use this feature:\n1. Get a Google API Key from https://console.cloud.google.com/apis/credentials\n2. Add VITE_GOOGLE_API_KEY to Vercel environment variables\n3. Redeploy\n\nFor now, please use the "Upload Video Files" option above.')
       return
     }
 
@@ -315,36 +315,47 @@ export default function Upload() {
             />
           </div>
 
-          {/* Google Drive Picker Button - Only show if API key is configured */}
-          {GOOGLE_API_KEY && (
-            <div style={{
-              border: '2px solid #4285f4',
-              borderRadius: '8px',
-              padding: '2rem',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              backgroundColor: '#fff',
-              flex: '1',
-              minWidth: '250px'
-            }}
-            onClick={handleGoogleDrivePicker}
-            onMouseEnter={(e) => {
+          {/* Google Drive Picker Button - Always visible */}
+          <div style={{
+            border: GOOGLE_API_KEY ? '2px solid #4285f4' : '2px dashed #9e9e9e',
+            borderRadius: '8px',
+            padding: '2rem',
+            cursor: GOOGLE_API_KEY ? 'pointer' : 'not-allowed',
+            transition: 'all 0.3s ease',
+            backgroundColor: GOOGLE_API_KEY ? '#fff' : '#f5f5f5',
+            flex: '1',
+            minWidth: '250px',
+            opacity: GOOGLE_API_KEY ? 1 : 0.7
+          }}
+          onClick={handleGoogleDrivePicker}
+          onMouseEnter={(e) => {
+            if (GOOGLE_API_KEY) {
               e.currentTarget.style.borderColor = '#1a73e8';
               e.currentTarget.style.backgroundColor = '#f0f7ff';
-            }}
-            onMouseLeave={(e) => {
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (GOOGLE_API_KEY) {
               e.currentTarget.style.borderColor = '#4285f4';
               e.currentTarget.style.backgroundColor = '#fff';
-            }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                Select from Google Drive
-              </div>
-              <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
-                Choose videos from your Drive
-              </div>
+            } else {
+              e.currentTarget.style.borderColor = '#9e9e9e';
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+            }
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+              Select from Google Drive
             </div>
-          )}
+            <div style={{ fontSize: '0.9rem', color: GOOGLE_API_KEY ? '#6c757d' : '#9e9e9e' }}>
+              {GOOGLE_API_KEY ? 'Choose videos from your Drive' : 'Setup required - See instructions'}
+            </div>
+            {!GOOGLE_API_KEY && (
+              <div style={{ fontSize: '0.75rem', color: '#ff9800', marginTop: '0.5rem', fontWeight: 'bold' }}>
+                ⚠️ API Key needed
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
