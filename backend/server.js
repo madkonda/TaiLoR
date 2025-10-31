@@ -434,6 +434,112 @@ app.get('/api/processing-status/:jobId', (req, res) => {
   });
 });
 
+// Process Google Drive file by file ID (from Google Picker)
+app.post('/api/process-drive-file', express.json(), async (req, res) => {
+  try {
+    const { fileId, fileName } = req.body;
+    
+    if (!fileId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameter: fileId'
+      });
+    }
+    
+    console.log(`🎬 Processing Google Drive file: ${fileId} (${fileName || 'unknown'})`);
+    
+    // Generate job ID
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const displayName = fileName || `drive_file_${fileId}`;
+    
+    // Create job
+    createJob(jobId, displayName, [677, 881], [766, 773]);
+    updateJobStep(jobId, 'upload', 'processing', 'Downloading from Google Drive...', 10);
+    
+    try {
+      // Download file from Google Drive
+      const drive = await getGoogleDriveClient();
+      
+      // Get file metadata
+      const fileMetadata = await drive.files.get({
+        fileId: fileId,
+        fields: 'id,name,mimeType,size'
+      });
+      
+      const driveFileName = fileMetadata.data.name || fileName || `video_${fileId}.mp4`;
+      
+      // Download file to temp location
+      const tempDir = './temp_uploads';
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      const tempFilePath = path.join(tempDir, driveFileName);
+      
+      updateJobStep(jobId, 'upload', 'processing', `Downloading ${driveFileName}...`, 20);
+      
+      // Download file
+      const fileStream = fs.createWriteStream(tempFilePath);
+      const driveResponse = await drive.files.get({
+        fileId: fileId,
+        alt: 'media'
+      }, { responseType: 'stream' });
+      
+      await new Promise((resolve, reject) => {
+        driveResponse.data
+          .on('end', resolve)
+          .on('error', reject)
+          .pipe(fileStream);
+      });
+      
+      console.log(`✅ Downloaded file from Drive: ${driveFileName}`);
+      
+      // Upload to our Drive folder (for Linux Mint to process)
+      updateJobStep(jobId, 'upload', 'processing', 'Uploading to processing folder...', 40);
+      
+      const driveResult = await uploadToGoogleDrive(tempFilePath, driveFileName);
+      
+      updateJobStep(jobId, 'upload', 'completed', 'File ready for processing!', 50);
+      updateJobStep(jobId, 'download', 'processing', 'Waiting for Linux Mint download...', 60);
+      
+      // Clean up temp file
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+      
+      res.json({
+        success: true,
+        message: `File downloaded from Drive and queued for processing`,
+        file: {
+          filename: driveFileName,
+          driveId: driveResult.id,
+          driveLink: driveResult.webViewLink,
+          jobId: jobId
+        },
+        jobId: jobId
+      });
+      
+    } catch (error) {
+      console.error(`Error processing Drive file ${fileId}:`, error);
+      updateJobStep(jobId, 'upload', 'failed', `Error: ${error.message}`, 0);
+      
+      res.status(500).json({
+        success: false,
+        error: `Failed to process Drive file: ${error.message}`,
+        jobId: jobId
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error handling Drive file request:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to handle Drive file request',
+      details: error.message
+    });
+  }
+});
+
 // Process folder with SAM2 segmentation
 app.post('/api/process-folder', express.json(), async (req, res) => {
   try {

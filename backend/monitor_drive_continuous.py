@@ -22,7 +22,7 @@ SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googlea
 # Configuration
 DRIVE_FOLDER_ID = "1HvGlLB-MjcYftrQ-SHeopc913vSEUNKA"  # Your Google Drive folder ID
 DOWNLOAD_DIR = "/home/morsestudio/sam2/videos"  # Local download directory
-SERVICE_ACCOUNT_FILE = 'service-account-key.json'  # Service account key file
+SERVICE_ACCOUNT_FILE = '/home/morsestudio/sam2/logic/service-account-key.json'  # Service account key file
 WEBHOOK_URL = "https://api.mintpc.morsestudio.dev/api/download-complete"  # Public backend webhook URL
 POLL_INTERVAL = 30  # Check for new files every 30 seconds
 

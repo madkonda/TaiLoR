@@ -1,0 +1,18 @@
+[Unit]
+Description=TaiLOR Google Drive Monitor (rclone-based)
+After=network-online.target rclone-mount.service
+Requires=rclone-mount.service
+
+[Service]
+Type=simple
+User=morsestudio
+WorkingDirectory=/home/morsestudio/sam2/logic
+ExecStart=/home/morsestudio/anaconda3/envs/sam2/bin/python /home/morsestudio/sam2/logic/monitor_drive_rclone.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

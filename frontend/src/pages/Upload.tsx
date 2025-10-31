@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ProcessingDashboard from '../components/ProcessingDashboard'
 import NewLinuxFileBrowser from '../components/NewLinuxFileBrowser'
 import { VERSION } from '../version'
 import { apiUrl } from '../config'
+
+// Google Drive Picker API key - add to .env in production
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || ''
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 interface ProcessingJob {
   id: string
@@ -19,6 +23,122 @@ export default function Upload() {
   const [nestCoords, setNestCoords] = useState<[number, number]>([677, 881])
   const [mouseCoords, setMouseCoords] = useState<[number, number]>([766, 773])
   const [processingJobs, setProcessingJobs] = useState<ProcessingJob[]>([])
+  const [pickerLoaded, setPickerLoaded] = useState(false)
+
+  // Load Google Picker API
+  useEffect(() => {
+    const loadPicker = () => {
+      if (typeof window === 'undefined' || !GOOGLE_API_KEY) {
+        return
+      }
+
+      // Load gapi first
+      if (!window.gapi) {
+        const gapiScript = document.createElement('script')
+        gapiScript.src = 'https://apis.google.com/js/api.js'
+        gapiScript.async = true
+        gapiScript.defer = true
+        gapiScript.onload = () => {
+          if (window.gapi) {
+            window.gapi.load('picker', { callback: () => setPickerLoaded(true) })
+          }
+        }
+        document.head.appendChild(gapiScript)
+      } else {
+        window.gapi.load('picker', { callback: () => setPickerLoaded(true) })
+      }
+    }
+
+    loadPicker()
+  }, [])
+
+  const handleGoogleDrivePicker = () => {
+    if (!GOOGLE_API_KEY) {
+      alert('Google Drive Picker is not configured. Please upload files directly or add VITE_GOOGLE_API_KEY to environment variables.')
+      return
+    }
+
+    // Use simpler approach - load picker on demand
+    if (!window.gapi) {
+      const script = document.createElement('script')
+      script.src = 'https://apis.google.com/js/api.js'
+      script.async = true
+      script.defer = true
+      script.onload = () => {
+        if (window.gapi) {
+          window.gapi.load('picker', { callback: showPicker })
+        }
+      }
+      document.head.appendChild(script)
+    } else {
+      if (window.gapi.picker) {
+        showPicker()
+      } else {
+        window.gapi.load('picker', { callback: showPicker })
+      }
+    }
+  }
+
+  const showPicker = () => {
+    try {
+      if (!window.google?.picker) {
+        alert('Google Picker API not loaded. Please try again.')
+        return
+      }
+
+      const picker = new window.google.picker.PickerBuilder()
+        .setDeveloperKey(GOOGLE_API_KEY)
+        .setCallback((data: any) => {
+          if (data.action === window.google.picker.Action.PICKED) {
+            const file = data.docs[0]
+            if (file) {
+              processDriveFile(file.id, file.name)
+            }
+          }
+        })
+        .addView(window.google.picker.ViewId.VIDEOS)
+        .addView(window.google.picker.ViewId.DOCS)
+        .setSelectableMimeTypes('video/mp4,video/avi,video/mov,video/mkv,video/webm')
+        .enableFeature(window.google.picker.Feature.NAV_HIDDEN)
+        .build()
+      
+      picker.setVisible(true)
+    } catch (error) {
+      console.error('Error showing picker:', error)
+      alert('Error opening Google Drive Picker. Please upload files directly.')
+    }
+  }
+
+  const processDriveFile = async (fileId: string, fileName: string) => {
+    try {
+      console.log(`📂 Processing Drive file: ${fileId} (${fileName})`)
+      
+      const response = await fetch(apiUrl('/process-drive-file'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fileId: fileId,
+          fileName: fileName
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        alert(`✅ Successfully queued file from Google Drive!\n\nFile: ${result.file.filename}\nJob ID: ${result.jobId}`)
+        console.log('Drive file queued:', result)
+      } else {
+        alert(`❌ Failed to process Drive file: ${result.error}`)
+        console.error('Drive file processing failed:', result)
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`❌ Error processing Drive file: ${errorMessage}`)
+      console.error('Drive file error:', error)
+    }
+  }
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -168,41 +288,75 @@ export default function Upload() {
       }}>
         <h3 style={{ margin: '0 0 1rem 0', color: '#495057' }}>📤 Upload Video Files</h3>
         <p style={{ margin: '0 0 1rem 0', color: '#6c757d' }}>
-          Upload your mouse behavior videos to get started with SAM2 segmentation.
+          Upload your mouse behavior videos or select from Google Drive to get started with SAM2 segmentation.
         </p>
         
-        <div style={{
-          border: '2px dashed #6c757d',
-          borderRadius: '8px',
-          padding: '2rem',
-          cursor: 'pointer',
-          transition: 'all 0.3s ease',
-          backgroundColor: '#fff'
-        }}
-        onClick={() => document.getElementById('fileInput')?.click()}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = '#007bff';
-          e.currentTarget.style.backgroundColor = '#f8f9ff';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = '#6c757d';
-          e.currentTarget.style.backgroundColor = '#fff';
-        }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⬆️</div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-            Click to select video files
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {/* Upload Button */}
+          <div style={{
+            border: '2px dashed #6c757d',
+            borderRadius: '8px',
+            padding: '2rem',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            backgroundColor: '#fff',
+            flex: '1',
+            minWidth: '250px'
+          }}
+          onClick={() => document.getElementById('fileInput')?.click()}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#007bff';
+            e.currentTarget.style.backgroundColor = '#f8f9ff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#6c757d';
+            e.currentTarget.style.backgroundColor = '#fff';
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⬆️</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+              Upload Video Files
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
+              MP4, AVI, MOV, MKV, WebM (max 5GB)
+            </div>
+            <input
+              id="fileInput"
+              type="file"
+              multiple
+              accept="video/mp4,video/avi,video/mov,video/mkv,video/webm"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+            />
           </div>
-          <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
-            Supports MP4, AVI, MOV, MKV, WebM (max 5GB each)
+
+          {/* Google Drive Picker Button */}
+          <div style={{
+            border: '2px solid #4285f4',
+            borderRadius: '8px',
+            padding: '2rem',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            backgroundColor: '#fff',
+            flex: '1',
+            minWidth: '250px'
+          }}
+          onClick={handleGoogleDrivePicker}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#1a73e8';
+            e.currentTarget.style.backgroundColor = '#f0f7ff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#4285f4';
+            e.currentTarget.style.backgroundColor = '#fff';
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+              Select from Google Drive
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
+              Choose videos from your Drive
+            </div>
           </div>
-          <input
-            id="fileInput"
-            type="file"
-            multiple
-            accept="video/mp4,video/avi,video/mov,video/mkv,video/webm"
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
-          />
         </div>
       </div>
 

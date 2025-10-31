@@ -1,0 +1,17 @@
+[Unit]
+Description=rclone Google Drive mount
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=morsestudio
+ExecStart=/usr/bin/rclone mount gdrive: /mnt/googledrive --vfs-cache-mode writes --daemon=false
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
