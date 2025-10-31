@@ -2,6 +2,16 @@
 
 interface Window {
   google?: {
+    accounts?: {
+      oauth2?: {
+        initTokenClient: (config: {
+          client_id: string;
+          scope: string;
+          prompt?: string;
+          callback: (resp: { access_token?: string }) => void;
+        }) => { requestAccessToken: () => void } | undefined;
+      };
+    };
     picker: {
       PickerBuilder: new () => GooglePickerBuilder;
       ViewId: {

@@ -4,8 +4,9 @@ import NewLinuxFileBrowser from '../components/NewLinuxFileBrowser'
 import { VERSION } from '../version'
 import { apiUrl } from '../config'
 
-// Google Drive Picker API key - add to .env in production
+// Google Drive Picker - API key and OAuth client ID
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || ''
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 interface ProcessingJob {
   id: string
@@ -50,7 +51,28 @@ export default function Upload() {
     }
   }
 
-  const showPicker = () => {
+  const getDriveAccessToken = async (): Promise<string | null> => {
+    try {
+      if (!GOOGLE_CLIENT_ID || !window.google?.accounts?.oauth2) return null;
+      return await new Promise<string | null>((resolve) => {
+        const init = window.google!.accounts!.oauth2!.initTokenClient;
+        if (!init) return resolve(null);
+        const tokenClient = init({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'https://www.googleapis.com/auth/drive.readonly',
+          prompt: '',
+          callback: (resp: any) => {
+            resolve(resp?.access_token || null);
+          }
+        });
+        tokenClient?.requestAccessToken();
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const showPicker = async () => {
     try {
       if (!window.google?.picker) {
         alert('Google Picker API not loaded. Please try again.')
@@ -58,7 +80,8 @@ export default function Upload() {
       }
 
       const googlePicker = window.google.picker
-      const picker = new googlePicker.PickerBuilder()
+      const accessToken = await getDriveAccessToken()
+      const builder = new googlePicker.PickerBuilder()
         .setDeveloperKey(GOOGLE_API_KEY)
         .setCallback((data: any) => {
           if (data.action === googlePicker.Action.PICKED) {
@@ -72,7 +95,13 @@ export default function Upload() {
         .addView(googlePicker.ViewId.DOCS)
         .setSelectableMimeTypes('video/mp4,video/avi,video/mov,video/mkv,video/webm')
         .enableFeature(googlePicker.Feature.NAV_HIDDEN)
-        .build()
+      
+      if (accessToken && (builder as any).setOAuthToken) {
+        // Authenticated picker to access user's Drive
+        (builder as any).setOAuthToken(accessToken)
+      }
+
+      const picker = builder.build()
       
       picker.setVisible(true)
     } catch (error) {
