@@ -1,4 +1,5 @@
-export const IS_PROD = typeof window !== 'undefined' && window.location.hostname === 'tailor.morsestudio.dev';
+const host = typeof window !== 'undefined' ? window.location.hostname : '';
+export const IS_PROD = !!host && (host === 'tailor.morsestudio.dev' || host.endsWith('.vercel.app'));
 
 // In production, talk directly to Cloudflare public API host (no /api prefix)
 // In development, talk to local proxy on 3001 with /api prefix

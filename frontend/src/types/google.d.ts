@@ -24,6 +24,7 @@ interface Window {
       Feature: {
         NAV_HIDDEN: string;
       };
+    DocsUploadView?: new () => GoogleDocsUploadView;
     };
   };
   gapi?: {
@@ -36,7 +37,7 @@ interface GooglePickerBuilder {
   setOAuthToken?(token: string): GooglePickerBuilder;
   setDeveloperKey(key: string): GooglePickerBuilder;
   setCallback(callback: (data: { action: string; docs: Array<{ id: string; name: string }> }) => void): GooglePickerBuilder;
-  addView(viewId: string): GooglePickerBuilder;
+  addView(viewId: string | GoogleDocsUploadView): GooglePickerBuilder;
   setSelectableMimeTypes(mimeTypes: string): GooglePickerBuilder;
   enableFeature(feature: string): GooglePickerBuilder;
   build(): GooglePicker;
@@ -44,5 +45,9 @@ interface GooglePickerBuilder {
 
 interface GooglePicker {
   setVisible(visible: boolean): void;
+}
+
+interface GoogleDocsUploadView {
+  setParent(folderId: string): GoogleDocsUploadView;
 }
 

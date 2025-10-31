@@ -4,9 +4,11 @@ import NewLinuxFileBrowser from '../components/NewLinuxFileBrowser'
 import { VERSION } from '../version'
 import { apiUrl } from '../config'
 
-// Google Drive Picker - API key and OAuth client ID
+// Google Drive Picker - API key, OAuth client ID, and target Drive folder (rclone videos)
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || ''
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+// Provided folder ID for videos (Linux Mint rclone-watched folder)
+const DRIVE_VIDEOS_FOLDER_ID = import.meta.env.VITE_DRIVE_VIDEOS_FOLDER_ID || '1HvGlLB-MjcYftrQ-SHeopc913vSEUNKA'
 
 interface ProcessingJob {
   id: string
@@ -87,7 +89,9 @@ export default function Upload() {
           if (data.action === googlePicker.Action.PICKED) {
             const file = data.docs[0]
             if (file) {
-              processDriveFile(file.id, file.name)
+              // Backend-free flow: file is now in the Drive folder watched by Linux Mint
+              alert(`✅ File ready for processing on Linux Mint.\n\nFile: ${file.name}`)
+              console.log('Drive file selected/uploaded:', file)
             }
           }
         })
@@ -101,6 +105,17 @@ export default function Upload() {
         (builder as any).setOAuthToken(accessToken)
       }
 
+      // Allow direct upload into the target Drive folder
+      try {
+        const uploadView = new (googlePicker as any).DocsUploadView()
+          .setParent(DRIVE_VIDEOS_FOLDER_ID)
+        if ((builder as any).addView) {
+          (builder as any).addView(uploadView)
+        }
+      } catch (e) {
+        console.warn('DocsUploadView not available:', e)
+      }
+
       const picker = builder.build()
       
       picker.setVisible(true)
@@ -110,36 +125,7 @@ export default function Upload() {
     }
   }
 
-  const processDriveFile = async (fileId: string, fileName: string) => {
-    try {
-      console.log(`📂 Processing Drive file: ${fileId} (${fileName})`)
-      
-      const response = await fetch(apiUrl('/process-drive-file'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fileId: fileId,
-          fileName: fileName
-        })
-      })
-
-      const result = await response.json()
-      
-      if (result.success) {
-        alert(`✅ Successfully queued file from Google Drive!\n\nFile: ${result.file.filename}\nJob ID: ${result.jobId}`)
-        console.log('Drive file queued:', result)
-      } else {
-        alert(`❌ Failed to process Drive file: ${result.error}`)
-        console.error('Drive file processing failed:', result)
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`❌ Error processing Drive file: ${errorMessage}`)
-      console.error('Drive file error:', error)
-    }
-  }
+  // Backend-free path: no separate processDriveFile call needed anymore
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
