@@ -138,6 +138,11 @@ export default function Upload() {
         body: formData
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
       const result = await response.json();
       
       if (result.success) {
@@ -149,7 +154,16 @@ export default function Upload() {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`❌ Upload error: ${errorMessage}`);
+      let userMessage = `❌ Upload error: ${errorMessage}`;
+      
+      // Provide helpful messages for common errors
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('network')) {
+        userMessage = `❌ Network error: Cannot connect to backend API.\n\nThis might be:\n• Backend server is down\n• SSL certificate not ready (wait a few minutes)\n• Check: https://api.mintpc.morsestudio.dev/api/health`;
+      } else if (errorMessage.includes('SSL') || errorMessage.includes('certificate')) {
+        userMessage = `❌ SSL Error: The backend SSL certificate may still be provisioning.\n\nPlease wait 5-10 minutes and try again, or check Cloudflare dashboard for SSL certificate status.`;
+      }
+      
+      alert(userMessage);
       console.error('Upload error:', error);
     }
   };
