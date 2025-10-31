@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import ProcessingDashboard from '../components/ProcessingDashboard'
 import NewLinuxFileBrowser from '../components/NewLinuxFileBrowser'
 import { VERSION } from '../version'
