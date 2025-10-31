@@ -6,7 +6,6 @@ import { apiUrl } from '../config'
 
 // Google Drive Picker API key - add to .env in production
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || ''
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 interface ProcessingJob {
   id: string
@@ -23,34 +22,6 @@ export default function Upload() {
   const [nestCoords, setNestCoords] = useState<[number, number]>([677, 881])
   const [mouseCoords, setMouseCoords] = useState<[number, number]>([766, 773])
   const [processingJobs, setProcessingJobs] = useState<ProcessingJob[]>([])
-  const [pickerLoaded, setPickerLoaded] = useState(false)
-
-  // Load Google Picker API
-  useEffect(() => {
-    const loadPicker = () => {
-      if (typeof window === 'undefined' || !GOOGLE_API_KEY) {
-        return
-      }
-
-      // Load gapi first
-      if (!window.gapi) {
-        const gapiScript = document.createElement('script')
-        gapiScript.src = 'https://apis.google.com/js/api.js'
-        gapiScript.async = true
-        gapiScript.defer = true
-        gapiScript.onload = () => {
-          if (window.gapi) {
-            window.gapi.load('picker', { callback: () => setPickerLoaded(true) })
-          }
-        }
-        document.head.appendChild(gapiScript)
-      } else {
-        window.gapi.load('picker', { callback: () => setPickerLoaded(true) })
-      }
-    }
-
-    loadPicker()
-  }, [])
 
   const handleGoogleDrivePicker = () => {
     if (!GOOGLE_API_KEY) {
@@ -86,20 +57,21 @@ export default function Upload() {
         return
       }
 
-      const picker = new window.google.picker.PickerBuilder()
+      const googlePicker = window.google.picker
+      const picker = new googlePicker.PickerBuilder()
         .setDeveloperKey(GOOGLE_API_KEY)
         .setCallback((data: any) => {
-          if (data.action === window.google.picker.Action.PICKED) {
+          if (data.action === googlePicker.Action.PICKED) {
             const file = data.docs[0]
             if (file) {
               processDriveFile(file.id, file.name)
             }
           }
         })
-        .addView(window.google.picker.ViewId.VIDEOS)
-        .addView(window.google.picker.ViewId.DOCS)
+        .addView(googlePicker.ViewId.VIDEOS)
+        .addView(googlePicker.ViewId.DOCS)
         .setSelectableMimeTypes('video/mp4,video/avi,video/mov,video/mkv,video/webm')
-        .enableFeature(window.google.picker.Feature.NAV_HIDDEN)
+        .enableFeature(googlePicker.Feature.NAV_HIDDEN)
         .build()
       
       picker.setVisible(true)
