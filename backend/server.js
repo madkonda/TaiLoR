@@ -57,8 +57,18 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-// Middleware
-app.use(cors());
+// Middleware - CORS with explicit origins
+app.use(cors({
+  origin: [
+    'https://tailor.morsestudio.dev',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    /\.vercel\.app$/
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Configure multer for temporary local storage
