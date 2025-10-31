@@ -25,7 +25,7 @@ export default function Upload() {
 
   const handleGoogleDrivePicker = () => {
     if (!GOOGLE_API_KEY) {
-      alert('Google Drive Picker is not configured. Please upload files directly or add VITE_GOOGLE_API_KEY to environment variables.')
+      // Silently return - button will be disabled if API key is not available
       return
     }
 
@@ -315,34 +315,36 @@ export default function Upload() {
             />
           </div>
 
-          {/* Google Drive Picker Button */}
-          <div style={{
-            border: '2px solid #4285f4',
-            borderRadius: '8px',
-            padding: '2rem',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            backgroundColor: '#fff',
-            flex: '1',
-            minWidth: '250px'
-          }}
-          onClick={handleGoogleDrivePicker}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#1a73e8';
-            e.currentTarget.style.backgroundColor = '#f0f7ff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#4285f4';
-            e.currentTarget.style.backgroundColor = '#fff';
-          }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-              Select from Google Drive
+          {/* Google Drive Picker Button - Only show if API key is configured */}
+          {GOOGLE_API_KEY && (
+            <div style={{
+              border: '2px solid #4285f4',
+              borderRadius: '8px',
+              padding: '2rem',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              backgroundColor: '#fff',
+              flex: '1',
+              minWidth: '250px'
+            }}
+            onClick={handleGoogleDrivePicker}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#1a73e8';
+              e.currentTarget.style.backgroundColor = '#f0f7ff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#4285f4';
+              e.currentTarget.style.backgroundColor = '#fff';
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                Select from Google Drive
+              </div>
+              <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
+                Choose videos from your Drive
+              </div>
             </div>
-            <div style={{ fontSize: '0.9rem', color: '#6c757d' }}>
-              Choose videos from your Drive
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

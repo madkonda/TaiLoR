@@ -22,12 +22,21 @@ const ProcessingDashboard: React.FC = () => {
   const [jobs, setJobs] = useState<ProcessingJob[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
-  // Poll for job updates every 2 seconds
+  // Poll for job updates (health check is optional, don't block on errors)
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         // Use health for connectivity; jobs may not exist in prod
-        const response = await fetch(apiUrl('/health'));
+        // Don't block uploads if health check fails - just show disconnected status
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const response = await fetch(apiUrl('/health'), {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
         if (response.ok) {
           setJobs([]);
           setIsConnected(true);
@@ -35,16 +44,19 @@ const ProcessingDashboard: React.FC = () => {
           setIsConnected(false);
         }
       } catch (error) {
-        console.error('Error fetching jobs:', error);
+        // Silently fail - don't block UI, just mark as disconnected
+        console.log('Health check failed (non-blocking):', error);
         setIsConnected(false);
       }
     };
 
-    // Fetch jobs immediately
-    fetchJobs();
+    // Fetch jobs immediately (but don't block)
+    fetchJobs().catch(() => {}); // Ignore errors
     
-    // Set up polling
-    const interval = setInterval(fetchJobs, 2000);
+    // Set up polling (with longer interval to reduce load)
+    const interval = setInterval(() => {
+      fetchJobs().catch(() => {}); // Ignore errors
+    }, 5000); // Check every 5 seconds instead of 2
     
     return () => clearInterval(interval);
   }, []);
