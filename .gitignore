@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+env/
+
+# Build / cache
+frontend/dist/
+backend/__pycache__/
+*.pyc
+*.pyo
+*.tsbuildinfo
+.pytest_cache/
+*.egg-info/
+*.egg
+
+# Env and secrets (never commit)
+.env
+.env.local
+.env.production
+.env.*.backup*
+.env.*.bak
+.env.local.backup*
+.env.production.backup*
+CREDENTIALS*.txt
+token.txt
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs and temp
+*.log
+*.tmp
+.cache/
+
+# Extra docs and scripts (local only, not in repo)
+extra/

@@ -1,0 +1,21 @@
+{
+  "fixed_points": {
+    "c1": [0, 0],
+    "c2": [1266, 0],
+    "c3": [1266, 688],
+    "c4": [0, 688],
+    "pipeEnd": [445, 426],
+    "pipeMid": [518, 381],
+    "pipeStart": [581, 346],
+    "foodhopperBottom": [610, 362],
+    "foodhopperLeft": [472, 117],
+    "foodhopperRight": [1016, 122],
+    "foodhopperMid": [654, 222],
+    "Pups_Location": [1018, 590]
+  }
+}
+
+
+
+
+
